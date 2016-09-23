@@ -28,6 +28,8 @@ class WebWeixin
     private $contact_list;
     private $group_list;
 
+    private $qrcode;
+
     private $bot_member_list = array();
 
 
@@ -37,6 +39,11 @@ class WebWeixin
         $this->device_id = 'e'.rand(100000000000000, 999999999999999);
     }
 
+
+    public function setQrcod($id)
+    {
+        $this->qrcode = $id;
+    }
 
     /**
      * 获取 UUID
@@ -77,9 +84,9 @@ class WebWeixin
     {
         $url = 'https://login.weixin.qq.com/l/'.$this->uuid;
 
-        QRcode::png($url, 'saved/qrcode.png', 'L', 4, 2);
+        QRcode::png($url, 'saved/'.$this->qrcode.'.png', 'L', 4, 2);
 
-        exec('open saved/qrcode.png');
+        //exec('open saved/qrcode.png');
 
         return true;
     }
@@ -273,6 +280,8 @@ class WebWeixin
                 exit();
         }
 
+        _echo('retcode: '.$retcode.', selector: '.$selector);
+
         return array('retcode'=>$retcode, 'selector'=>$selector);
     }
 
@@ -320,6 +329,8 @@ class WebWeixin
 
         while (true) {
 
+            $sync_time = time();
+
             $sync_check = $this->syncCheck();
 
             if ($sync_check['retcode'] == 0) {
@@ -327,11 +338,13 @@ class WebWeixin
                     $res = $this->webWxSync();
                     $this->handleMsg($res);
                 } elseif ($sync_check['selector'] == 0) {
-                    sleep(3);
-                } else {
-                    sleep(3);
+                    //sleep(3);
                 }
             }
+
+            $sleep = (time()-$sync_time) > 3 ? 3 : 1;
+
+            sleep($sleep);
         }
     }
 
@@ -384,7 +397,7 @@ class WebWeixin
 
                 if (in_array($from_username, array_keys($this->bot_member_list))) {
 
-                    $answer = $this->_yigeai_bot($content, $from_username);
+                    $answer = $this->_tuling_bot($content, $from_username);
 
                     $this->_webWxSendmsg($answer, $from_username);
                 }
@@ -574,9 +587,16 @@ class WebWeixin
     {
         _echo('微信网页版 ... 启动');
 
+        $login_num = 0;
         while (true) {
             _echo('正在获取 UUID ... ', $this->getUUID());
             _echo('正在获取二维码 ...', $this->genQRCodeImg());
+
+            $login_num++;
+
+            if ($login_num > 5) {
+                exit();
+            }
 
             _echo('请使用微信扫描二维码 ...');
 
@@ -607,5 +627,8 @@ class WebWeixin
     }
 }
 
+$id = $argv[1];
+
 $weixin = new WebWeixin();
+$weixin->setQrcod($id);
 $weixin->run();

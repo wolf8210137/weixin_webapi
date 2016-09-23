@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="//cdn.bootcss.com/jquery/1.2.3/jquery.min.js"></script>
+</head>
+<body>
+
+<!--
+<div id="uuid"></div>
+<hr>
+-->
+
+<div id="qrcode">正在生成登录二维码...</div>
+
+</body>
+<script>
+    $(function(){
+        var random = new Date().getTime()+Math.ceil(Math.random()*1000);
+        $("#uuid").html(random);
+
+        $.getJSON("/weixin_webapi/qrcode.php",{id:random} , function (data) {
+
+            if (data.status == 0) {
+                $("#qrcode").html('正在生成登录二维码...');
+            }
+
+            if (data.status == 1) {
+                var img_tag = '<img src="'+data.img+'?r='+Math.random()+'" />';
+                $("#qrcode").html(img_tag);
+            }
+        });
+
+        self.setInterval(function(){
+            $.getJSON("/weixin_webapi/qrcode.php",{id:random} , function (data) {
+
+                if (data.status == 0) {
+                    $("#qrcode").html('正在生成登录二维码...');
+                }
+
+                if (data.status == 3) {
+                    random = new Date().getTime()+Math.ceil(Math.random()*1000);
+                    $("#uuid").html(random);
+                }
+
+                if (data.status == 1) {
+                    var img_tag = '<img src="'+data.img+'?r='+Math.random()+'" />';
+                    $("#qrcode").html(img_tag);
+                }
+            });
+        },3000)
+    });
+
+
+
+
+</script>
+</html>
