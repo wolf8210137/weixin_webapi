@@ -28,6 +28,8 @@ class WebWeixin
     private $contact_list;
     private $group_list;
 
+    private $bot_member_list = array();
+
 
     public function __construct()
     {
@@ -362,9 +364,85 @@ class WebWeixin
             $content = $msg['Content'];
 
             if ($msg_type == 1) {
+
+                if ($content == '开启') {
+                    $this->bot_member_list[$from_username] = 1;
+                    $this->_webWxSendmsg('已开始机器人回复模式', $from_username);
+                    return ;
+                }
+
+                if ($content == '关闭') {
+                    unset($this->bot_member_list[$from_username]);
+                    $this->_webWxSendmsg('已关闭机器人回复模式', $from_username);
+                    return ;
+                }
+
                 $this->_showMsg($msg);
+
+                if (in_array($from_username, array_keys($this->bot_member_list))) {
+
+                    $answer = $this->_tuling_bot($content, $from_username);
+
+                    $this->_webWxSendmsg($answer, $from_username);
+                }
+
             }
         }
+    }
+
+
+    /**
+     * 发送文本消息
+     * @param $content
+     * @param $user
+     * @return bool
+     */
+    private function _webWxSendmsg($content, $user)
+    {
+        $url = sprintf($this->base_uri.'/webwxsendmsg?pass_ticket=%s', $this->pass_ticket);
+        $clientMsgId = time()*1000 . rand(1000, 9999);
+
+        $params = array(
+            'BaseRequest' => $this->BaseRequest,
+            'Msg' => array(
+                'Type' => 1,
+                'Content' => $content,
+                'FromUserName' => $this->User['UserName'],
+                'ToUserName' => $user,
+                'LocalID' => $clientMsgId,
+                'ClientMsgId' => $clientMsgId
+            )
+        );
+
+        $data = $this->_post($url, json_encode($params, JSON_UNESCAPED_UNICODE));
+
+        $arr_data = json_decode($data, true);
+
+        return $arr_data['BaseResponse']['Ret'] == 0;
+    }
+
+
+    /**
+     * 图灵机器人
+     * @param $query
+     * @param $userid
+     * @return mixed
+     */
+    private function _tuling_bot($query, $userid)
+    {
+        $url = 'http://www.tuling123.com/openapi/api';
+
+        $params = array(
+            'key' => 'a0dc5c2edd76999392a9bf45533ab758',
+            'info' => $query,
+            'userid' => $userid
+        );
+
+        $data = $this->_post($url, json_encode($params));
+
+        $arr_data = json_decode($data, true);
+
+        return $arr_data['text'];
     }
 
 
@@ -404,7 +482,7 @@ class WebWeixin
 
         if ($jsonfmt) {
             $header = array(
-                'Content-Type: application/json',
+                'Content-Type: application/json; charset=UTF-8',
             );
 
             curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
