@@ -381,7 +381,7 @@ class WebWeixin
 
                 if (in_array($from_username, array_keys($this->bot_member_list))) {
 
-                    $answer = $this->_tuling_bot($content, $from_username);
+                    $answer = $this->_yigeai_bot($content, $from_username);
 
                     $this->_webWxSendmsg($answer, $from_username);
                 }
@@ -443,6 +443,31 @@ class WebWeixin
         $arr_data = json_decode($data, true);
 
         return $arr_data['text'];
+    }
+
+
+    /**
+     * 一个AI机器人
+     * @param $query
+     * @param $userid
+     * @return mixed
+     */
+    private function _yigeai_bot($query, $userid)
+    {
+        $data = array(
+            'token' => '20F21FED84B1BC7F88C798C90FBAEBBB',
+            'query' => $query,
+            'session_id' => $userid
+        );
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'http://www.yige.ai/v1/query');
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $response = curl_exec($ch);
+
+        return $response;
     }
 
 
