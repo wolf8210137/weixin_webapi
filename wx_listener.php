@@ -457,7 +457,7 @@ class WebWeixin
         $data = array(
             'token' => '20F21FED84B1BC7F88C798C90FBAEBBB',
             'query' => $query,
-            'session_id' => $userid
+            'session_id' => md5($userid)
         );
 
         $ch = curl_init();
@@ -467,7 +467,9 @@ class WebWeixin
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $response = curl_exec($ch);
 
-        return $response;
+        $arr_res = json_decode($response, true);
+
+        return $arr_res['answer'];
     }
 
 
