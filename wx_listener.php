@@ -270,6 +270,7 @@ class WebWeixin
                 break;
             default:
                 _echo('同步数据失败 或 登出微信');
+                exit();
         }
 
         return array('retcode'=>$retcode, 'selector'=>$selector);
@@ -326,6 +327,8 @@ class WebWeixin
                     $res = $this->webWxSync();
                     $this->handleMsg($res);
                 } elseif ($sync_check['selector'] == 0) {
+                    sleep(3);
+                } else {
                     sleep(3);
                 }
             }
