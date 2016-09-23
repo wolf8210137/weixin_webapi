@@ -17,6 +17,8 @@ class WebWeixin
     private $cookie_jar;
     private $SyncKey;
     private $User;
+    private $device_id;
+    private $synckey;
 
     private $member_count;
     private $member_list;
@@ -28,6 +30,7 @@ class WebWeixin
     public function __construct()
     {
         $this->cookie_jar = tempnam(sys_get_temp_dir(), 'wx_webapi');
+        $this->device_id = 'e'.rand(100000000000000, 999999999999999);
     }
 
 
@@ -146,7 +149,7 @@ class WebWeixin
             'Uin' => intval($this->uin),
             'Sid' => $this->sid,
             'Skey' => $this->skey,
-            'DeviceID' => 'e'.rand(100000000000000, 99999999999999)
+            'DeviceID' => $this->device_id
         );
 
         return true;
@@ -166,17 +169,21 @@ class WebWeixin
 
         $arr_data = json_decode($data, true);
 
+        if ($arr_data['BaseResponse']['Ret'] != 0) {
+            return false;
+        }
+
         $this->SyncKey = $arr_data['SyncKey'];
         $this->User = $arr_data['User'];
 
-        $rynckey_list = array();
+        $synckey_list = array();
         foreach ($this->SyncKey['List'] as $item) {
-            $rynckey_list[] = $item['Key'].'_'.$item['Val'];
+            $synckey_list[] = $item['Key'].'_'.$item['Val'];
         }
 
-        $this->rynckey = implode('|', $rynckey_list);
+        $this->synckey = implode('|', $synckey_list);
 
-        return $arr_data['BaseResponse']['Ret'] == 0;
+        return true;
     }
 
 
@@ -204,6 +211,10 @@ class WebWeixin
     }
 
 
+    /**
+     * 获取联系人列表
+     * @return bool
+     */
     public function webWxGetContact()
     {
         $url = sprintf($this->base_uri.'/webwxgetcontact?pass_ticket=%s&skey=%s&r=%s', $this->pass_ticket, $this->skey, time());
@@ -220,6 +231,54 @@ class WebWeixin
         return true;
     }
 
+
+    /**
+     * 同步刷新
+     * @return bool
+     */
+    public function syncCheck()
+    {
+
+        $params = array(
+            'r' => time(),
+            'sid' => $this->sid,
+            'uin' => $this->uin,
+            'skey' => $this->skey,
+            'devicedid' => $this->device_id,
+            'synckey' => $this->synckey,
+            '_' => time()
+        );
+
+        $url = $this->base_uri.'/synccheck?'.http_build_query($params);
+
+        $data = $this->_get($url);
+
+        $regx = '#window.synccheck={retcode:"(\d+)",selector:"(\d+)"}#';
+
+        preg_match($regx, $data, $res);
+
+        $retcode = $res[1];
+        $selector = $res[2];
+
+        switch ($retcode) {
+            case 0:
+                _echo('同步刷新 正常');
+                break;
+            default:
+                _echo('同步刷新失败 或 登出微信');
+        }
+
+        switch ($selector) {
+
+            case 2:
+                _echo('有新的消息');
+                break;
+            case 7:
+                _echo('进入/离开聊天界面');
+        }
+
+        return $retcode == '0';
+    }
 
     /**
      * POST请求
@@ -243,7 +302,7 @@ class WebWeixin
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
         curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)");
         curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_jar);
         curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_jar);
@@ -272,7 +331,7 @@ class WebWeixin
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_REFERER, 'https://wx.qq.com/');
         curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)");
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
         curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_jar);
         curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_jar);
@@ -323,6 +382,8 @@ class WebWeixin
         _echo('获取联系人信息 ...', $this->webWxGetContact());
 
         _echo('获取联系人数量：'.$this->member_count);
+
+        _echo('同步刷新', $this->syncCheck());
     }
 }
 
