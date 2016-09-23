@@ -20,6 +20,8 @@ class WebWeixin
     private $device_id;
     private $synckey;
 
+    private $syncCheck_num = 0;
+
     private $member_count;
     private $member_list;
     private $public_user_list;
@@ -262,10 +264,10 @@ class WebWeixin
 
         switch ($retcode) {
             case 0:
-                _echo('同步刷新 正常');
+                _echo('同步数据轮次: '.++$this->syncCheck_num);
                 break;
             default:
-                _echo('同步刷新失败 或 登出微信');
+                _echo('同步数据失败 或 登出微信');
         }
 
         return array('retcode'=>$retcode, 'selector'=>$selector);
