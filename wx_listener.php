@@ -27,7 +27,7 @@ class WebWeixin
 
     public function __construct()
     {
-        $this->cookie_jar = tempnam('/tmp','cookie');
+        $this->cookie_jar = tempnam(sys_get_temp_dir(), 'wx_webapi');
     }
 
 
