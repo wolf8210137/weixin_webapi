@@ -7,8 +7,10 @@ function _echo($content, $status=0)
     if ($status === true)
         echo ' 成功';
 
-    if ($status === false)
+    if ($status === false) {
         echo ' 失败';
+        exit();
+    }
 
 
 

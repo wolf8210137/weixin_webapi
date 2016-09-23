@@ -268,17 +268,127 @@ class WebWeixin
                 _echo('同步刷新失败 或 登出微信');
         }
 
-        switch ($selector) {
+        return array('retcode'=>$retcode, 'selector'=>$selector);
+    }
 
-            case 2:
-                _echo('有新的消息');
-                break;
-            case 7:
-                _echo('进入/离开聊天界面');
+
+    /**
+     * 获取消息
+     * @return mixed
+     */
+    public function webWxSync()
+    {
+
+        $url = sprintf($this->base_uri.'/webwxsync?sid=%s&skey=%s&pass_ticket=%s', $this->sid, $this->skey, $this->pass_ticket);
+
+        $params = array(
+            'BaseRequest' => $this->BaseRequest,
+            'SyncKey' => $this->SyncKey,
+            'rr' => ~time()
+        );
+
+        $data = $this->_post($url, json_encode($params));;
+
+        $arr_data = json_decode($data, true);
+
+        if ($arr_data['BaseResponse']['Ret'] == '0') {
+            $this->SyncKey = $arr_data['SyncKey'];
+
+            $synckey_list = array();
+            foreach ($this->SyncKey['List'] as $item) {
+                $synckey_list[] = $item['Key'].'_'.$item['Val'];
+            }
+
+            $this->synckey = implode('|', $synckey_list);
         }
 
-        return $retcode == '0';
+        return $arr_data;
     }
+
+
+    /**
+     * 监听消息
+     */
+    public function listenMsgMode()
+    {
+        _echo('进入消息监听模式 ... 成功');
+
+        while (true) {
+
+            $sync_check = $this->syncCheck();
+
+            if ($sync_check['retcode'] == 0) {
+                if ($sync_check['selector'] == 2) {
+                    $res = $this->webWxSync();
+                    $this->handleMsg($res);
+                } elseif ($sync_check['selector'] == 0) {
+                    sleep(3);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param $id
+     */
+    public function getUserRemarkName($id)
+    {
+
+        $name = '陌生人';
+
+        if (substr($id, 0, 2) == '@@') {
+            $name = '未知群';
+        }
+
+        if ($id == $this->User['UserName']) {
+            return $this->User['NickName'];
+        }
+
+        if (substr($id, 0, 2) == '@@') {
+            $name = '未知群';
+        }
+    }
+
+
+    public function handleMsg($res)
+    {
+        foreach ($res['AddMsgList'] as $msg) {
+
+            $msg_type = $msg['MsgType'];
+            $from_username = $msg['FromUserName'];
+            $msgid = $msg['MsgId'];
+            $content = $msg['Content'];
+
+            if ($msg_type == 1) {
+                $this->_showMsg($msg);
+            }
+        }
+    }
+
+
+    private function _showMsg($message)
+    {
+        $from_username = $message['FromUserName'];
+        $to_username = $message['ToUserName'];
+
+        $search = array('&lt;', '&gt;');
+        $replace = array('<', '>');
+
+        $content = str_replace($search, $replace, $message['Content']);
+        $message_id = $message['MsgId'];
+
+        if (substr($message['FromUserName'], 0, 2) == '@@') {
+            list($from_username, $content) = explode(':<br/>', $content);
+        }
+
+        _echo('');
+        _echo('MsgId: '. $message_id);
+        _echo('From: '.$from_username);
+        _echo('TO: '.$to_username);
+        _echo('消息内容: '.$content);
+        _echo('');
+    }
+
 
     /**
      * POST请求
@@ -383,7 +493,7 @@ class WebWeixin
 
         _echo('获取联系人数量：'.$this->member_count);
 
-        _echo('同步刷新', $this->syncCheck());
+        $this->listenMsgMode();
     }
 }
 
