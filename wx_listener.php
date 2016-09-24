@@ -602,11 +602,12 @@ class WebWeixin
             _echo('正在获取二维码 ...', $this->genQRCodeImg());
 
             // 设置用户与二维码对应关系
-            set_cache($this->id, $this->uuid);
+            $id_info = array('status'=>3, 'uuid'=>$this->uuid);
+            set_cache($this->id, $id_info);
 
             $login_num++;
 
-            if ($login_num > 5) {
+            if ($login_num == 3) {
                 exit();
             }
 
@@ -629,6 +630,9 @@ class WebWeixin
 
         _echo('微信初始化 ...', $this->webWxInit());
 
+        $id_info = array('status'=>4);
+        set_cache($this->id, $id_info);
+
         _echo('开启状态通知 ...', $this->webWxStatusNotify());
 
         _echo('获取联系人信息 ...', $this->webWxGetContact());
@@ -641,13 +645,9 @@ class WebWeixin
 
 $id = $argv[1];
 
+register_shutdown_function('shutdown', $id);
+
+
 $weixin = new WebWeixin();
 $weixin->setId($id);
 $weixin->run();
-
-function shutdown($id)
-{
-    del_cache($id);
-}
-
-register_shutdown_function('shutdown', $id);

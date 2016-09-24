@@ -1,5 +1,13 @@
 <?php
 
+
+function shutdown($id)
+{
+    $id_info = array('status'=>0);
+    set_cache($id, $id_info);
+    _echo('进程退出');
+}
+
 function _echo($content, $status=0)
 {
     echo '[*] '.$content;
@@ -38,7 +46,7 @@ function get_cache($key)
  * @param int $expiration
  * @return bool
  */
-function set_cache($key, $value, $expiration=60)
+function set_cache($key, $value, $expiration=3600)
 {
     $mc = new Memcached();
     $mc->addServer("localhost", 11211);

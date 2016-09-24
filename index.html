@@ -19,26 +19,40 @@
 <script>
     $(function(){
         var random = new Date().getTime()+Math.ceil(Math.random()*1000);
-        var img = '';
+        var uuid = '';
         $("#uuid").html(random);
 
-        self.setInterval(function(){
+        var id = window.setInterval(function(){
             $.getJSON("/weixin_webapi/qrcode.php",{id:random} , function (data) {
 
                 if (data.status == 0) {
-                    $("#qrcode").html('正在生成登录二维码...');
+                    $("#qrcode").html('警告: 微信已退出登录或意外退出 ...');
+                    window.clearInterval(id);
                 }
 
                 if (data.status == 1) {
+                    $("#qrcode").html('第一步, 等待创建WEB微信进程 ...');
+                }
 
-                    if (data.img != img) {
-                        var img_tag = '<img src="'+data.img+'?r='+Math.random()+'" />';
+                if (data.status == 2) {
+                    $("#qrcode").html('第二步, 正在生成登录二维码 ...');
+                }
+
+                if (data.status >= 4) {
+                    $("#qrcode").html('第三步, 微信进程接管成功,请关闭本页面 ...');
+                    window.clearInterval(id);
+                }
+
+                if (data.status == 3) {
+
+                    if (data.uuid != uuid) {
+                        var img_tag = '<img src="saved/'+data.uuid+'.png?r='+Math.random()+'" />';
                         $("#qrcode").html(img_tag);
-                        img = data.img;
+                        uuid = data.uuid;
                     }
                 }
             });
-        },3000)
+        },1000)
     });
 
 </script>

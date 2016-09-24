@@ -11,9 +11,12 @@ while (true) {
         continue;
     }
 
-    foreach ($process_list as $id) {
-        exec('php wx_listener.php ' . $id . ' >/dev/null &');
+    foreach ($process_list as $k => $id) {
+        exec('php wx_listener.php ' . $id . ' > log/'.$id.' &');
+        _echo($k);
         _echo('启动进程, 用户ID: '.$id);
+        $id_info = array('status'=>2);
+        set_cache($id, $id_info);
     }
 
     del_cache('process_list');
