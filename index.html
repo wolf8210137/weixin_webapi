@@ -11,7 +11,7 @@
 <div id="uuid"></div>
 <hr>
 -->
-<div>扫码登录完成后，请关闭本页面</div>
+
 <hr>
 <div id="qrcode">正在生成登录二维码...</div>
 
@@ -19,19 +19,8 @@
 <script>
     $(function(){
         var random = new Date().getTime()+Math.ceil(Math.random()*1000);
+        var img = '';
         $("#uuid").html(random);
-
-        $.getJSON("/weixin_webapi/qrcode.php",{id:random} , function (data) {
-
-            if (data.status == 0) {
-                $("#qrcode").html('正在生成登录二维码...');
-            }
-
-            if (data.status == 1) {
-                var img_tag = '<img src="'+data.img+'?r='+Math.random()+'" />';
-                $("#qrcode").html(img_tag);
-            }
-        });
 
         self.setInterval(function(){
             $.getJSON("/weixin_webapi/qrcode.php",{id:random} , function (data) {
@@ -40,21 +29,17 @@
                     $("#qrcode").html('正在生成登录二维码...');
                 }
 
-                if (data.status == 3) {
-                    random = new Date().getTime()+Math.ceil(Math.random()*1000);
-                    $("#uuid").html(random);
-                }
-
                 if (data.status == 1) {
-                    var img_tag = '<img src="'+data.img+'?r='+Math.random()+'" />';
-                    $("#qrcode").html(img_tag);
+
+                    if (data.img != img) {
+                        var img_tag = '<img src="'+data.img+'?r='+Math.random()+'" />';
+                        $("#qrcode").html(img_tag);
+                        img = data.img;
+                    }
                 }
             });
         },3000)
     });
-
-
-
 
 </script>
 </html>

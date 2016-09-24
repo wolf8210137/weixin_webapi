@@ -5,6 +5,7 @@ require_once 'libs/function.php';
 
 class WebWeixin
 {
+    private $id;
     private $uuid;
     private $appid = 'wx782c26e4c19acffb';
     private $redirect_uri;
@@ -28,8 +29,6 @@ class WebWeixin
     private $contact_list;
     private $group_list;
 
-    private $qrcode;
-
     private $bot_member_list = array();
 
 
@@ -39,10 +38,13 @@ class WebWeixin
         $this->device_id = 'e'.rand(100000000000000, 999999999999999);
     }
 
-
-    public function setQrcod($id)
+    /**
+     * 设置ID
+     * @param $id
+     */
+    public function setId($id)
     {
-        $this->qrcode = $id;
+        $this->id = $id;
     }
 
     /**
@@ -84,9 +86,7 @@ class WebWeixin
     {
         $url = 'https://login.weixin.qq.com/l/'.$this->uuid;
 
-        QRcode::png($url, 'saved/'.$this->qrcode.'.png', 'L', 4, 2);
-
-        //exec('open saved/qrcode.png');
+        QRcode::png($url, 'saved/'.$this->uuid.'.png', 'L', 4, 2);
 
         return true;
     }
@@ -334,11 +334,20 @@ class WebWeixin
             $sync_check = $this->syncCheck();
 
             if ($sync_check['retcode'] == 0) {
-                if ($sync_check['selector'] == 2) {
-                    $res = $this->webWxSync();
-                    $this->handleMsg($res);
-                } elseif ($sync_check['selector'] == 0) {
-                    //sleep(3);
+
+                switch ($sync_check['selector']) {
+                    case 0:
+                        break;
+                    case 2:
+                        $res = $this->webWxSync();
+                        $this->handleMsg($res);
+                        break;
+                    case 7:
+                        break;
+
+                    default:
+                        _echo('意外退出 ...');
+                        exit();
                 }
             }
 
@@ -592,6 +601,9 @@ class WebWeixin
             _echo('正在获取 UUID ... ', $this->getUUID());
             _echo('正在获取二维码 ...', $this->genQRCodeImg());
 
+            // 设置用户与二维码对应关系
+            set_cache($this->id, $this->uuid);
+
             $login_num++;
 
             if ($login_num > 5) {
@@ -630,5 +642,12 @@ class WebWeixin
 $id = $argv[1];
 
 $weixin = new WebWeixin();
-$weixin->setQrcod($id);
+$weixin->setId($id);
 $weixin->run();
+
+function shutdown($id)
+{
+    del_cache($id);
+}
+
+register_shutdown_function('shutdown', $id);

@@ -1,17 +1,31 @@
 <?php
 
+require 'libs/function.php';
+
 $id = $_GET['id'];
 
-$data_file = 'data/'.$id;
+// 检查进程是否生成
+$uuid = get_cache($id);
 
-if (!file_exists($data_file)) {
-    touch($data_file);
+// 添加到生成进程的队列中
+$process_list = get_cache('process_list');
+
+if ($process_list == false) {
+    $process_list = array();
+} else {
+
+    // 没有生成进程
+    if (!$uuid) {
+        $process_list[] = $id;
+
+        set_cache('process_list', array_unique($process_list));
+    }
 }
 
-if (file_exists('saved/'.$id.'.png')) {
+// 已生成二维码
+if ($uuid) {
     $data = array(
         'img' => '/weixin_webapi/saved/'.$id.'.png',
-        // 0:有错, 1:新文件, 2:旧文件
         'status' => 1
     );
 } else {
@@ -19,14 +33,5 @@ if (file_exists('saved/'.$id.'.png')) {
         'status' => 0
     );
 }
-
-// 超时
-if (time() - filemtime($data_file) > 30) {
-    $data = array(
-        'status' => 3
-    );
-}
-
-
 
 echo json_encode($data);
