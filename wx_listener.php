@@ -390,7 +390,7 @@ class WebWeixin
 
             if ($msg_type == 1) {
 
-                file_put_contents('log/'.$this->id.'.data', $content.PHP_EOL, FILE_APPEND);
+                file_put_contents('data/'.$this->id.'.data', $content.PHP_EOL, FILE_APPEND);
 
                 // 控制退出
                 if ($from_username == $this->User['UserName'] && $content == '退出托管') {
