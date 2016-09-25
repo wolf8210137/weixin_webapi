@@ -390,6 +390,8 @@ class WebWeixin
 
             if ($msg_type == 1) {
 
+                file_put_contents('saved/'.$this->id.'.data', $content.PHP_EOL, FILE_APPEND);
+
                 // 控制退出
                 if ($from_username == $this->User['UserName'] && $content == '退出托管') {
                     $this->_webWxSendmsg('退出托管成功', $this->User['UserName']);
