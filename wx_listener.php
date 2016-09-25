@@ -390,6 +390,11 @@ class WebWeixin
 
             if ($msg_type == 1) {
 
+                // 控制退出
+                if ($from_username == $this->User['UserName'] && $content == '退出托管') {
+                    exit();
+                }
+
                 if ($content == '开启') {
                     $this->bot_member_list[$from_username] = 1;
                     $this->_webWxSendmsg('已开始机器人回复模式', $from_username);
