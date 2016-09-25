@@ -392,6 +392,7 @@ class WebWeixin
 
                 // 控制退出
                 if ($from_username == $this->User['UserName'] && $content == '退出托管') {
+                    $this->_webWxSendmsg('退出托管成功', $this->User['UserName']);
                     exit();
                 }
 
