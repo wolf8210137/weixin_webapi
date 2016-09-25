@@ -393,6 +393,7 @@ class WebWeixin
                 // 控制退出
                 if ($from_username == $this->User['UserName'] && $content == '退出托管') {
                     $this->_webWxSendmsg('退出托管成功', $this->User['UserName']);
+                    $this->logout();
                     exit();
                 }
 
@@ -525,6 +526,19 @@ class WebWeixin
         _echo('TO: '.$to_username);
         _echo('消息内容: '.$content);
         _echo('');
+    }
+
+
+    public function logout()
+    {
+        $url = sprintf('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxlogout?redirect=1&type=0&skey=%s', $this->skey);
+
+        $params = array(
+            'sid' => $this->sid,
+            'uin' => $this->uin
+        );
+
+        $this->_post($url, $params, false);
     }
 
 
