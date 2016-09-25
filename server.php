@@ -4,6 +4,8 @@ require_once 'libs/function.php';
 
 while (true) {
 
+    start:
+
     $process_list = get_cache('process_list');
 
     if (!$process_list) {
@@ -12,10 +14,17 @@ while (true) {
     }
 
     foreach ($process_list as $k => $id) {
+
+        $online_list = get_cache('online_list');
+
+        if (count($online_list) == 5) {
+            sleep(1);
+            goto start;
+        }
+
         exec('php wx_listener.php ' . $id . ' > log/'.$id.' &');
         _echo('启动进程, 用户ID: '.$id);
 
-        $online_list = get_cache('online_list');
         $online_list[] = $id;
         set_cache('online_list', array_unique($online_list));
 
@@ -23,7 +32,9 @@ while (true) {
 
         $id_info = array('status'=>2);
         set_cache($id, $id_info);
-    }
 
-    del_cache('process_list');
+        unset($process_list[array_search($id, $process_list)]);
+
+        set_cache('process_list', $process_list);
+    }
 }

@@ -639,6 +639,8 @@ class WebWeixin
 
         _echo('获取联系人数量：'.$this->member_count);
 
+        $this->_webWxSendmsg('微信托管成功', $this->User['UserName']);
+
         $this->listenMsgMode();
     }
 }
