@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>登录微信</title>
     <script src="//cdn.bootcss.com/jquery/1.2.3/jquery.min.js"></script>
 </head>
 <body>
@@ -12,7 +12,11 @@
 <hr>
 -->
 
+
+<br>
+<div>当前已托管微信数: <span id="online_num">统计中...</span></div>
 <hr>
+<br>
 <div id="qrcode">正在生成登录二维码...</div>
 
 </body>
@@ -24,6 +28,8 @@
 
         var id = window.setInterval(function(){
             $.getJSON("/weixin_webapi/qrcode.php",{id:random} , function (data) {
+
+                $("#online_num").html(data.online_list_count);
 
                 if (data.status == 0) {
                     $("#qrcode").html('警告: 微信已退出登录或意外退出 ...');

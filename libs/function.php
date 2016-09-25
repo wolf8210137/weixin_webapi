@@ -5,6 +5,11 @@ function shutdown($id)
 {
     $id_info = array('status'=>0);
     set_cache($id, $id_info);
+
+    $online_list = get_cache('online_list');
+    unset($online_list[array_search($id, $online_list)]);
+    set_cache('online_list', array_unique($online_list));
+
     _echo('进程退出');
 }
 

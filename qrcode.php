@@ -27,6 +27,10 @@ if (!$id_info) {
 }
 
 
+$online_list = get_cache('online_list');
+
+$id_info['online_list_count'] = count($online_list);
+
 // 已生成二维码
 if (isset($id_info['status'])) {
     echo json_encode($id_info);
