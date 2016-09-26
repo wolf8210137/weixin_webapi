@@ -360,6 +360,9 @@ class WebWeixin
             }
 
             sleep(1);
+
+            $id_info = array('status'=>5);
+            set_cache($this->id, $id_info);
         }
     }
 
