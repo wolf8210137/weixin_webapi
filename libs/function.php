@@ -7,6 +7,9 @@ function shutdown($id)
     set_cache($id, $id_info);
 
     $online_list = get_cache('online_list');
+
+    empty($online_list) && $online_list = array();
+
     unset($online_list[array_search($id, $online_list)]);
     set_cache('online_list', array_unique($online_list));
 

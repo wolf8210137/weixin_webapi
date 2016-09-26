@@ -88,6 +88,8 @@ class WebWeixin
 
         QRcode::png($url, 'saved/'.$this->uuid.'.png', 'L', 4, 2);
 
+        exec('open '.'saved/'.$this->uuid.'.png');
+
         return true;
     }
 
@@ -329,18 +331,24 @@ class WebWeixin
 
         while (true) {
 
-            $sync_time = time();
-
+            $start = time();
             $sync_check = $this->syncCheck();
+            _echo('耗时: '.(time()-$start).'s');
 
             if ($sync_check['retcode'] == 0) {
 
                 switch ($sync_check['selector']) {
                     case 0:
+                        _echo('本次同步正常');
                         break;
                     case 2:
+                        _echo('有新的消息');
                         $res = $this->webWxSync();
                         $this->handleMsg($res);
+                        break;
+
+                    case 4:
+                        _echo('服务圈有新动态');
                         break;
                     case 7:
                         break;
@@ -351,9 +359,7 @@ class WebWeixin
                 }
             }
 
-            $sleep = (time()-$sync_time) > 3 ? 3 : 1;
-
-            sleep($sleep);
+            sleep(1);
         }
     }
 
@@ -387,6 +393,7 @@ class WebWeixin
             $from_username = $msg['FromUserName'];
             $msgid = $msg['MsgId'];
             $content = $msg['Content'];
+
 
             if ($msg_type == 1) {
 
