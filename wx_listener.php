@@ -360,7 +360,8 @@ class WebWeixin
                         break;
 
                     case 4:
-                        _echo('服务圈有新动态');
+                        _echo('意外退出 ...');
+                        exit();
                         break;
 
                     case 7:
@@ -370,7 +371,8 @@ class WebWeixin
                         break;
 
                     case 6:
-
+                        _echo('意外退出 ...');
+                        exit();
                         break;
 
                     default:
@@ -386,7 +388,7 @@ class WebWeixin
 
             $while_num++;
 
-            if ($while_num%20 == 0) {
+            if ($while_num%10 == 0) {
                 _echo('开启状态通知 ...', $this->webWxStatusNotify());
             }
 
@@ -424,7 +426,10 @@ class WebWeixin
             $msgid = $msg['MsgId'];
             $content = $msg['Content'];
 
-            $content = str_replace('&gt;', '>', str_replace('&lt;', '<', $content));
+            $search = array('&gt;', '&lt;', '<br/>');
+            $replace = array('>', '<', '');
+
+            $content = str_replace($search, $replace, $content);
 
             _echo('消息类型: '. $msg_type);
             _echo('From: '.$from_username);
@@ -489,6 +494,9 @@ class WebWeixin
                             break;
                         case 4:
                             _echo('未读消息通知');
+                            break;
+                        case 9:
+                            _echo('朋友圈有更新');
                             break;
                     }
 
