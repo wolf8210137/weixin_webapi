@@ -18,7 +18,7 @@ function shutdown($id)
 
 function _echo($content, $status=0)
 {
-    echo '[*] '.$content;
+    echo '[*] '.date('Y-m-d H:i:s').' '.$content;
 
     if ($status === true)
         echo ' 成功';

@@ -19,7 +19,7 @@ while (true) {
 
         $process_count = exec("ps ax | grep wx_listener.php | grep -v 'grep' | wc -l");
 
-        if ($process_count >= 5) {
+        if ($process_count >= 10) {
             sleep(1);
             goto start;
         }

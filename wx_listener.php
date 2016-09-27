@@ -266,6 +266,10 @@ class WebWeixin
 
         $data = $this->_get($url);
 
+        if ($data == false) {
+            return array('retcode'=>0, 'selector'=>0);
+        }
+
         $regx = '#window.synccheck={retcode:"(\d+)",selector:"(\d+)"}#';
 
         preg_match($regx, $data, $res);
@@ -329,7 +333,11 @@ class WebWeixin
     {
         _echo('进入消息监听模式 ... 成功');
 
+        $while_num = 0;
+
         while (true) {
+
+            start:
 
             $start = time();
             $sync_check = $this->syncCheck();
@@ -340,11 +348,15 @@ class WebWeixin
                 switch ($sync_check['selector']) {
                     case 0:
                         _echo('本次同步正常');
+
+                        goto start;
                         break;
                     case 2:
                         _echo('有新的消息');
                         $res = $this->webWxSync();
                         $this->handleMsg($res);
+
+                        goto start;
                         break;
 
                     case 4:
@@ -353,6 +365,8 @@ class WebWeixin
 
                     case 7:
                         _echo('进入或离开聊天界面');
+
+                        goto start;
                         break;
 
                     case 6:
@@ -365,10 +379,17 @@ class WebWeixin
                 }
             }
 
-            sleep(1);
+            sleep(5);
 
             $id_info = array('status'=>5);
             set_cache($this->id, $id_info);
+
+            $while_num++;
+
+            if ($while_num%20 == 0) {
+                _echo('开启状态通知 ...', $this->webWxStatusNotify());
+            }
+
         }
     }
 
@@ -403,39 +424,75 @@ class WebWeixin
             $msgid = $msg['MsgId'];
             $content = $msg['Content'];
 
+            $content = str_replace('&gt;', '>', str_replace('&lt;', '<', $content));
 
-            if ($msg_type == 1) {
+            _echo('消息类型: '. $msg_type);
+            _echo('From: '.$from_username);
+            _echo('TO: '.$msg['ToUserName']);
+            _echo('消息内容: '. $content);
 
-                file_put_contents('data/'.$this->id.'.data', $content.PHP_EOL, FILE_APPEND);
 
-                // 控制退出
-                if ($from_username == $this->User['UserName'] && $content == '退出托管') {
-                    $this->_webWxSendmsg('退出托管成功', $this->User['UserName']);
-                    $this->logout();
-                    exit();
-                }
+            switch ($msg_type) {
+                // 文本消息
+                case 1:
+                    file_put_contents('data/'.$this->id.'.data', $content.PHP_EOL, FILE_APPEND);
 
-                if ($content == '开启') {
-                    $this->bot_member_list[$from_username] = 1;
-                    $this->_webWxSendmsg('已开始机器人回复模式', $from_username);
-                    return ;
-                }
+                    // 控制退出
+                    if ($from_username == $this->User['UserName'] && $content == '退出托管') {
+                        $this->_webWxSendmsg('退出托管成功', $this->User['UserName']);
+                        $this->logout();
+                        exit();
+                    }
 
-                if ($content == '关闭') {
-                    unset($this->bot_member_list[$from_username]);
-                    $this->_webWxSendmsg('已关闭机器人回复模式', $from_username);
-                    return ;
-                }
+                    if ($content == '开启') {
+                        $this->bot_member_list[$from_username] = 1;
+                        $this->_webWxSendmsg('已开始机器人回复模式', $from_username);
+                        return ;
+                    }
 
-                $this->_showMsg($msg);
+                    if ($content == '关闭') {
+                        unset($this->bot_member_list[$from_username]);
+                        $this->_webWxSendmsg('已关闭机器人回复模式', $from_username);
+                        return ;
+                    }
 
-                if (in_array($from_username, array_keys($this->bot_member_list))) {
+                    //$this->_showMsg($msg);
 
-                    $answer = $this->_tuling_bot($content, $from_username);
+                    if (in_array($from_username, array_keys($this->bot_member_list))) {
 
-                    $this->_webWxSendmsg($answer, $from_username);
-                }
+                        $answer = $this->_tuling_bot($content, $from_username);
 
+                        $this->_webWxSendmsg($answer, $from_username);
+                    }
+
+                    break;
+
+                // 状态提示
+                case 51:
+
+                    $res = array();
+                    preg_match("#id='(\d)'#", $content, $res);
+                    $id = $res[1];
+
+                    $res = array();
+
+                    preg_match("#<username>(.*)</username>#", $content, $res);
+
+                    $username = isset($res[1]) ? $res[1] : null;
+
+                    switch ($id) {
+                        case 2:
+                            _echo('进入聊天界面->'.$username);
+                            break;
+                        case 5:
+                            _echo('退出聊天界面->'.$username);
+                            break;
+                        case 4:
+                            _echo('未读消息通知');
+                            break;
+                    }
+
+                    break;
             }
         }
     }
