@@ -350,7 +350,13 @@ class WebWeixin
                     case 4:
                         _echo('服务圈有新动态');
                         break;
+
                     case 7:
+                        _echo('进入或离开聊天界面');
+                        break;
+
+                    case 6:
+
                         break;
 
                     default:
