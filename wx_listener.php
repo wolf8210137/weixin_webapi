@@ -23,11 +23,28 @@ class WebWeixin
 
     private $syncCheck_num = 0;
 
-    private $member_count;
-    private $member_list;
-    private $public_user_list;
-    private $contact_list;
-    private $group_list;
+    // 我的所有用户数
+    private $member_count = 0;
+    // 我的所有用户列表
+    private $member_list = array();
+
+    // 我的公众号列表
+    private $public_user_list = array();
+    // 我的直接联系人列表
+    private $contact_list = array();
+    // 我的群列表
+    private $group_list = array();
+
+    // 我的特殊账号列表
+    private $special_user_list = array();
+
+    // 群内成员
+    private $group_member_list = array();
+
+    // 已知特殊账号列表
+    private $special_users = array(
+        'newsapp', 'fmessage', 'filehelper', 'weibo', 'qqmail', 'fmessage', 'tmessage', 'qmessage', 'qqsync', 'floatbottle', 'lbsapp', 'shakeapp', 'medianote', 'qqfriend', 'readerapp', 'blogapp', 'facebookapp', 'masssendapp', 'meishiapp', 'feedsapp', 'voip', 'blogappweixin', 'weixin', 'brandsessionholder', 'weixinreminder', 'wxid_novlwrv3lqwv11', 'gh_22b87fa7cb3c', 'officialaccounts', 'notification_messages', 'wxid_novlwrv3lqwv11', 'gh_22b87fa7cb3c', 'wxitil', 'userexperience_alarm', 'notification_messages'
+    );
 
     private $bot_member_list = array();
 
@@ -236,10 +253,70 @@ class WebWeixin
 
         $arr_data = json_decode($data, true);
 
-        file_put_contents('/tmp/data.json', $data);
+        //file_put_contents('/tmp/data.json', $data);
 
         $this->member_count = $arr_data['MemberCount'];
         $this->member_list = $arr_data['MemberList'];
+        $contact_list = $this->member_list;
+        $public_user_list = $this->public_user_list;
+
+        foreach ($contact_list as $k=>$v) {
+            if (($v['VerifyFlag'] & 8) != 0) {  // 公众号/服务号
+                unset($contact_list[$k]);
+                $public_user_list[] = $v;
+            } elseif (in_array($v['UserName'], $this->special_users)) {   // 特殊账号
+                unset($contact_list[$k]);
+                $this->special_user_list[] = $v;
+            } elseif (strpos($v['UserName'], '@@') !== false) { // 群聊
+                unset($contact_list[$k]);
+                $this->group_list[] = $v;
+            } elseif ($v['UserName'] == $this->User['UserName']) {  // 自己
+                unset($contact_list[$k]);
+            }
+        }
+
+        $this->contact_list = $contact_list;
+
+        return true;
+    }
+
+
+    /**
+     * 获取群信息
+     * @return bool
+     */
+    public function webWxBatchGetContact()
+    {
+        $url = $this->base_uri.sprintf('/webwxbatchgetcontact?type=ex&r=%s&pass_ticket=%s', time(), $this->pass_ticket);
+
+        $list = array();
+
+        foreach ($this->group_list as $v) {
+            $item = array();
+            $item['UserName'] = $v['UserName'];
+            $item['EncryChatRoomId'] = '';
+            $list[] = $item;
+        }
+
+        $params = array(
+            'BaseRequest' => $this->BaseRequest,
+            'Count' => count($this->group_list),
+            'List' => $list
+        );
+
+        $data = $this->_post($url, json_encode($params));
+
+        $arr_data = json_decode($data, true);
+
+        $contact_list = $arr_data['ContactList'];
+
+        $this->group_list = $contact_list;
+
+        foreach ($contact_list as $contact) {
+            foreach ($contact['MemberList'] as $member) {
+                $this->group_member_list[] = $member;
+            }
+        }
 
         return true;
     }
@@ -395,7 +472,82 @@ class WebWeixin
         }
     }
 
+
+    public function getNameById($id)
+    {
+        $url = $this->base_uri.sprintf('/webwxbatchgetcontact?type=ex&r=%s&pass_ticket=%s', time(), $this->pass_ticket);
+
+        $params = array(
+            'BaseRequest' => $this->BaseRequest,
+            'Count' => 1,
+            'List' => array(array('UserName'=>$id, 'EncryChatRoomId'=>''))
+        );
+
+        $data = $this->_post($url, json_encode($params));
+
+        $arr_data = json_decode($data, true);
+
+        return $arr_data['ContactList'];
+    }
+
+
     /**
+     * 获取群名称
+     * @param $id
+     * @return string
+     */
+    public function getGroupName($id)
+    {
+        $name = '未知群';
+
+        foreach ($this->group_list as $member) {
+            if ($member['UserName'] == $id) {
+                $name = $member['NickName'];
+            }
+        }
+
+        if ($name == '未知群') {
+            $group_list = $this->getNameById($id);
+
+            foreach ($group_list as $group) {
+                $this->group_list[] = $group;
+
+                if ($group['UserName'] == $id) {
+                    $name = $group['NickName'];
+
+                    foreach ($group['MemberList'] as $member) {
+                        $this->group_member_list[] = $member;
+                    }
+                }
+            }
+        }
+
+        return $name;
+    }
+
+
+    /**
+     * 获取用户ID
+     * @param $name
+     * @return string
+     */
+    public function getUserId($name)
+    {
+        $id = '';
+
+        foreach ($this->member_list as $member) {
+            if (in_array($name, array($member['RemarkName'], $member['NickName']))) {
+                $id = $member['UserName'];
+                break;
+            }
+        }
+
+        return $id;
+    }
+
+
+    /**
+     * 根据ID获取名称
      * @param $id
      */
     public function getUserRemarkName($id)
@@ -412,8 +564,39 @@ class WebWeixin
         }
 
         if (substr($id, 0, 2) == '@@') {
-            $name = '未知群';
+            // 群
+            $name = $this->getGroupName($id);
+        } else {
+            // 特殊账号
+            foreach ($this->special_user_list as $member) {
+                if ($member['UserName'] == $id) {
+                    $name = !empty($member['RemarkName']) ? $member['RemarkName'] : $member['NickName'];
+                }
+            }
+
+            // 公众号
+            foreach ($this->public_user_list as $member) {
+                if ($member['UserName'] == $id) {
+                    $name = !empty($member['RemarkName']) ? $member['RemarkName'] : $member['NickName'];
+                }
+            }
+
+            // 直接联系人
+            foreach ($this->contact_list as $member) {
+                if ($member['UserName'] == $id) {
+                    $name = !empty($member['RemarkName']) ? $member['RemarkName'] : $member['NickName'];
+                }
+            }
+
+            // 群友
+            foreach ($this->group_member_list as $member) {
+                if ($member['UserName'] == $id) {
+                    $name = !empty($member['RemarkName']) ? $member['RemarkName'] : $member['NickName'];
+                }
+            }
         }
+
+        return $name;
     }
 
 
@@ -432,14 +615,13 @@ class WebWeixin
             $content = str_replace($search, $replace, $content);
 
             _echo('消息类型: '. $msg_type);
-            _echo('From: '.$from_username);
-            _echo('TO: '.$msg['ToUserName']);
-            _echo('消息内容: '. $content);
+            _echo('原始消息内容: '. $content);
 
 
             switch ($msg_type) {
                 // 文本消息
                 case 1:
+
                     file_put_contents('data/'.$this->id.'.data', $content.PHP_EOL, FILE_APPEND);
 
                     // 控制退出
@@ -461,7 +643,7 @@ class WebWeixin
                         return ;
                     }
 
-                    //$this->_showMsg($msg);
+                    $this->_showMsg($msg);
 
                     if (in_array($from_username, array_keys($this->bot_member_list))) {
 
@@ -590,9 +772,9 @@ class WebWeixin
 
     private function _showMsg($message)
     {
-        $from_username = $message['FromUserName'];
-        $to_username = $message['ToUserName'];
-
+        $from_username = $this->getUserRemarkName($message['FromUserName']);
+        $to_username = $this->getUserRemarkName($message['ToUserName']);
+        $group_name = '';
         $search = array('&lt;', '&gt;');
         $replace = array('<', '>');
 
@@ -600,13 +782,42 @@ class WebWeixin
         $message_id = $message['MsgId'];
 
         if (substr($message['FromUserName'], 0, 2) == '@@') {
-            list($from_username, $content) = explode(':<br/>', $content);
+            if (strpos($message['Content'], ':<br/>') !== false) {
+                list($group_member, $content) = explode(':<br/>', $content);
+                $group_name = $from_username;
+                $from_username = $this->getUserRemarkName($group_member);
+            } else {
+                $group_name = '系统';
+            }
+
+        }
+
+        if (substr($message['ToUserName'], 0, 2) == '@@') {
+            $group_name = $to_username;
+            $to_username = $this->getUserRemarkName($message['ToUserName']);
         }
 
         _echo('');
         _echo('MsgId: '. $message_id);
+
+        if (!empty($group_name)) {
+            _echo('群聊: '.$group_name);
+        }
+
         _echo('From: '.$from_username);
         _echo('TO: '.$to_username);
+
+        $res = array();
+        preg_match_all("/@([^\s\xe2\x80\x85]+)\xe2\x80\x85/", $content, $res);
+
+        if (isset($res[1])) {
+
+            foreach ($res[1] as $at_name) {
+                _echo('@昵称: '.$at_name);
+                _echo('@ID: '.$this->getUserId($at_name));
+            }
+        }
+
         _echo('消息内容: '.$content);
         _echo('');
     }
@@ -740,7 +951,11 @@ class WebWeixin
 
         _echo('获取联系人信息 ...', $this->webWxGetContact());
 
-        _echo('获取联系人数量：'.$this->member_count);
+        _echo(sprintf('应用 %s 个联系人, 读取到联系人 %s 个', $this->member_count, count($this->member_list)));
+
+        _echo(sprintf('共有 %d 个群, %d 个直接联系人, %d 个特殊账号, %d 个公众号', count($this->group_list), count($this->contact_list), count($this->special_user_list), count($this->public_user_list)));
+
+        _echo('获取群信息 ...', $this->webWxBatchGetContact());
 
         $this->_webWxSendmsg('微信托管成功', $this->User['UserName']);
 

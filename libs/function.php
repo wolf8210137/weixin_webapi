@@ -25,12 +25,13 @@ function _echo($content, $status=0)
 
     if ($status === false) {
         echo ' 失败';
+        echo " \n";
         exit();
     }
 
 
-
     echo " \n";
+
 }
 
 /**
