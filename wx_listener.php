@@ -414,51 +414,74 @@ class WebWeixin
 
         while (true) {
 
-            start:
-
             $start = time();
             $sync_check = $this->syncCheck();
             _echo('耗时: '.(time()-$start).'s');
 
             if ($sync_check['retcode'] == 0) {
+                $res = $this->webWxSync();
+
+                // 记录每次同步的响应信息
+                $log_data = array();
+                $log_data['selector'] = $sync_check['selector'];
+                $log_data['wx_sync'] = $res;
+                _save_data($log_data, $this->id);
 
                 switch ($sync_check['selector']) {
+                    // 同步正常
                     case 0:
                         _echo('本次同步正常');
 
-                        goto start;
                         break;
+                    // 有新消息
                     case 2:
                         _echo('有新的消息');
-                        $res = $this->webWxSync();
+
+                        // 空消息
+                        if ($res['AddMsgCount'] == 0) {
+                            sleep(5);
+                        }
+
                         $this->handleMsg($res);
 
-                        goto start;
                         break;
 
+                    // 联系人有更新
                     case 4:
-                        _echo('意外退出 ...');
-                        exit();
+                        _echo('好友信息有变动, 更新联系人列表');
+
+                        foreach ($res['ModContactList'] as $member) {
+                            $this->member_list[] = $member;
+                        }
+
                         break;
 
                     case 7:
                         _echo('进入或离开聊天界面');
 
-                        goto start;
-                        break;
-
-                    case 6:
-                        _echo('意外退出 ...');
+                        //goto start;
                         exit();
                         break;
 
+                    // 同意添加对方为好友
+                    case 6:
+                        _echo('同意添加对方为好友, 更新联系人列表');
+
+                        $this->handleMsg($res);
+                        foreach ($res['ModContactList'] as $member) {
+                            $this->member_list[] = $member;
+                        }
+
+                        break;
+
                     default:
+                        $res = $this->webWxSync();
                         _echo('意外退出 ...');
                         exit();
                 }
             }
 
-            sleep(5);
+            sleep(2);
 
             $id_info = array('status'=>5);
             set_cache($this->id, $id_info);
@@ -622,8 +645,6 @@ class WebWeixin
                 // 文本消息
                 case 1:
 
-                    file_put_contents('data/'.$this->id.'.data', $content.PHP_EOL, FILE_APPEND);
-
                     // 控制退出
                     if ($from_username == $this->User['UserName'] && $content == '退出托管') {
                         $this->_webWxSendmsg('退出托管成功', $this->User['UserName']);
@@ -682,6 +703,16 @@ class WebWeixin
                             break;
                     }
 
+                    break;
+
+                // 加好友提示
+                case 37:
+                    _echo('有人加我为好友, 请审核');
+                    break;
+
+                // 同意对方加好友请求后的系统提示语
+                case 10000:
+                    //_echo('你已添加了Vicky，现在可以开始聊天了');
                     break;
             }
         }
@@ -770,6 +801,10 @@ class WebWeixin
     }
 
 
+    /**
+     * 显示文本信息
+     * @param $message
+     */
     private function _showMsg($message)
     {
         $from_username = $this->getUserRemarkName($message['FromUserName']);
@@ -797,7 +832,6 @@ class WebWeixin
             $to_username = $this->getUserRemarkName($message['ToUserName']);
         }
 
-        _echo('');
         _echo('MsgId: '. $message_id);
 
         if (!empty($group_name)) {
@@ -805,7 +839,8 @@ class WebWeixin
         }
 
         _echo('From: '.$from_username);
-        _echo('TO: '.$to_username);
+        _echo('To: '.$to_username);
+
 
         $res = array();
         preg_match_all("/@([^\s\xe2\x80\x85]+)\xe2\x80\x85/", $content, $res);

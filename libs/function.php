@@ -29,10 +29,16 @@ function _echo($content, $status=0)
         exit();
     }
 
-
     echo " \n";
-
 }
+
+function _save_data($data, $id)
+{
+    $data['time'] = date('Y-m-d H:i:s');
+    file_put_contents('data/'.$id.'.data', json_encode($data, JSON_UNESCAPED_UNICODE).PHP_EOL, FILE_APPEND);
+}
+
+
 
 /**
  * 获取缓存
