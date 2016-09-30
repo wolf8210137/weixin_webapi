@@ -483,8 +483,13 @@ class WebWeixin
 
             sleep(1);
 
+            // 进程状态
             $id_info = array('status'=>5);
             set_cache($this->id, $id_info);
+
+            // 保持在线
+            $online_list[] = $this->id;
+            set_cache('online_list', array_unique($online_list));
 
             $while_num++;
 
