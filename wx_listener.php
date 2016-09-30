@@ -439,7 +439,7 @@ class WebWeixin
 
                         // 空消息
                         if ($res['AddMsgCount'] == 0) {
-                            sleep(5);
+                            sleep(1);
                         }
 
                         $this->handleMsg($res);
@@ -481,7 +481,7 @@ class WebWeixin
                 }
             }
 
-            sleep(2);
+            sleep(1);
 
             $id_info = array('status'=>5);
             set_cache($this->id, $id_info);
