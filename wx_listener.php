@@ -421,6 +421,11 @@ class WebWeixin
             if ($sync_check['retcode'] == 0) {
                 $res = $this->webWxSync();
 
+                if (is_null($res)) {
+                    _echo('意外退出 ...');
+                    exit();
+                }
+
                 // 记录每次同步的响应信息
                 $log_data = array();
                 $log_data['selector'] = $sync_check['selector'];
