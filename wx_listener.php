@@ -191,7 +191,7 @@ class WebWeixin
      */
     public function webWxInit()
     {
-        $url = sprintf($this->base_uri . '/webwxinit?pass_ticket=%s&skey=%s&r=%s', $this->pass_ticket, $this->skey, time());
+        $url = sprintf($this->base_uri . '/webwxinit?r=%i&lang=en_US&pass_ticket=%s', time(), $this->pass_ticket);
 
         $params = json_encode(array('BaseRequest'=>$this->BaseRequest));
 
@@ -685,6 +685,14 @@ class WebWeixin
 
                     break;
 
+				// 图片消息
+				case 3:
+					break;
+				
+				// 语音消息
+				case 34:
+					break;
+
                 // 状态提示
                 case 51:
 
@@ -930,6 +938,14 @@ class WebWeixin
 
         }
 
+        if ($group_name == '微信功能测试群') {
+            $to_group_name = '世纪佳缘技术部';
+        }
+
+        if ($group_name == '世纪佳缘技术部') {
+            $to_group_name = '微信功能测试群';
+        }
+
         if (substr($message['ToUserName'], 0, 2) == '@@') {
             $group_name = $to_username;
             $to_username = $this->getUserRemarkName($message['ToUserName']);
@@ -1129,6 +1145,8 @@ class WebWeixin
         $this->_webWxSendmsg('微信托管成功', $this->User['UserName']);
 
         $this->_webWxSendimg('test.jpg', $this->User['UserName']);
+
+        $this->logout();
 
         //$this->listenMsgMode();
     }
