@@ -430,7 +430,7 @@ class WebWeixin
                 $log_data = array();
                 $log_data['selector'] = $sync_check['selector'];
                 $log_data['wx_sync'] = $res;
-                _save_data($log_data, $this->id);
+                //_save_data($log_data, $this->id);
 
                 switch ($sync_check['selector']) {
                     // 同步正常
@@ -490,11 +490,11 @@ class WebWeixin
 
             // 进程状态
             $id_info = array('status'=>5);
-            set_cache($this->id, $id_info);
+            //set_cache($this->id, $id_info);
 
             // 保持在线
             $online_list[] = $this->id;
-            set_cache('online_list', array_unique($online_list));
+            //set_cache('online_list', array_unique($online_list));
 
             $while_num++;
 
@@ -730,6 +730,99 @@ class WebWeixin
 
 
     /**
+     * 上传文件
+     * @param $file
+     * @return bool
+     */
+    private function _uploadmedia($file)
+    {
+        $url = 'https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json';
+        $clientMsgId = time()*1000 . rand(1000, 9999);
+
+        $cookie_data = file($this->cookie_jar);
+
+        $cookies = array();
+        foreach ($cookie_data as $v) {
+            $tmp_data = explode("\t", $v);
+
+            if (isset($tmp_data[5])) {
+                $cookies[$tmp_data[5]] = trim($tmp_data[6]);
+            }
+        }
+
+        $data = array(
+            'id' => 'WU_FILE_1',
+            'name' => basename($file),
+            'type' => 'image/jpg',
+            'lastModifiedDate' => date('D M m Y H:i:s').' GMT+0800 (CST)',
+            'size' => filesize($file),
+            'mediatype' => 'pic',
+            'uploadmediarequest' => json_encode(array(
+                'BaseRequest' => $this->BaseRequest,
+                'ClientMediaId' => $clientMsgId,
+                'TotalLen' => filesize($file),
+                'StartPos' => 0,
+                'DataLen' => filesize($file),
+                'MediaType' => 4
+            )),
+            'webwx_data_ticket' => $cookies['webwx_data_ticket'],
+            'pass_ticket' => $this->pass_ticket,
+            'filename' => curl_file_create($file,'image/jpeg','2011072204.jpg')
+        );
+
+        $header = array('Content-Type: multipart/form-data');
+
+        $res = $this->_post_header($url, $data, $header);
+
+        $res = json_decode($res, true);
+
+        if ($res['BaseResponse']['Ret'] != 0) {
+            return false;
+        }
+
+        return $res['MediaId'];
+    }
+
+
+    /**
+     * 发送图片信息
+     * @param $file
+     * @param $user
+     * @return bool
+     */
+    private function _webWxSendimg($file, $user)
+    {
+        $url = $this->base_uri.'/webwxsendmsgimg?fun=async&f=json';
+        $clientMsgId = time()*1000 . rand(1000, 9999);
+
+        $media_id = $this->_uploadmedia($file);
+
+        if (empty($media_id)) {
+            _echo('上传图片失败');
+            return false;
+        }
+
+
+        $params = array(
+            'BaseRequest' => $this->BaseRequest,
+            'Msg' => array(
+                'Type' => 3,
+                'MediaId' => $media_id,
+                'FromUserName' => $this->User['UserName'],
+                'ToUserName' => $user,
+                'LocalID' => $clientMsgId,
+                'ClientMsgId' => $clientMsgId
+            )
+        );
+
+        $data = $this->_post($url, json_encode($params, JSON_UNESCAPED_UNICODE));
+
+        $arr_data = json_decode($data, true);
+
+        return $arr_data['BaseResponse']['Ret'] == 0;
+    }
+
+    /**
      * 发送文本消息
      * @param $content
      * @param $user
@@ -868,6 +961,9 @@ class WebWeixin
     }
 
 
+    /**
+     * 退出登录
+     */
     public function logout()
     {
         $url = sprintf('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxlogout?redirect=1&type=0&skey=%s', $this->skey);
@@ -882,20 +978,16 @@ class WebWeixin
 
 
     /**
-     * POST请求
+     * 自定义header头 POST请求
      * @param $url
      * @param $params
      * @return bool|mixed
      */
-    private function _post($url, $params, $jsonfmt=true)
+    private function _post_header($url, $params, $header=null)
     {
         $ch = curl_init();
 
-        if ($jsonfmt) {
-            $header = array(
-                'Content-Type: application/json; charset=UTF-8',
-            );
-
+        if (!empty($header)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
         }
 
@@ -947,6 +1039,38 @@ class WebWeixin
         }
     }
 
+    /**
+     * POST请求
+     * @param $url
+     * @param $params
+     * @return bool|mixed
+     */
+    private function _post($url, $params, $jsonfmt=true)
+    {
+        $ch = curl_init();
+        if ($jsonfmt) {
+            $header = array(
+                'Content-Type: application/json; charset=UTF-8',
+            );
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+        }
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)");
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_jar);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_jar);
+        $data = curl_exec($ch);
+        if (curl_errno($ch)) {
+            //print "Error: " . curl_error($ch);
+            return false;
+        } else {
+            return $data;
+        }
+    }
+
 
     /**
      * 运行
@@ -962,7 +1086,7 @@ class WebWeixin
 
             // 设置用户与二维码对应关系
             $id_info = array('status'=>3, 'uuid'=>$this->uuid);
-            set_cache($this->id, $id_info);
+            //set_cache($this->id, $id_info);
 
             $login_num++;
 
@@ -990,7 +1114,7 @@ class WebWeixin
         _echo('微信初始化 ...', $this->webWxInit());
 
         $id_info = array('status'=>4);
-        set_cache($this->id, $id_info);
+        //set_cache($this->id, $id_info);
 
         _echo('开启状态通知 ...', $this->webWxStatusNotify());
 
@@ -1004,13 +1128,15 @@ class WebWeixin
 
         $this->_webWxSendmsg('微信托管成功', $this->User['UserName']);
 
-        $this->listenMsgMode();
+        $this->_webWxSendimg('test.jpg', $this->User['UserName']);
+
+        //$this->listenMsgMode();
     }
 }
 
 $id = $argv[1];
 
-register_shutdown_function('shutdown', $id);
+//register_shutdown_function('shutdown', $id);
 
 
 $weixin = new WebWeixin();
