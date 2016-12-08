@@ -430,7 +430,7 @@ class WebWeixin
                 $log_data = array();
                 $log_data['selector'] = $sync_check['selector'];
                 $log_data['wx_sync'] = $res;
-                //_save_data($log_data, $this->id);
+                _save_data($log_data, $this->id);
 
                 switch ($sync_check['selector']) {
                     // 同步正常
@@ -1144,11 +1144,18 @@ class WebWeixin
 
         $this->_webWxSendmsg('微信托管成功', $this->User['UserName']);
 
-        $this->_webWxSendimg('test.jpg', $this->User['UserName']);
+        //$this->_webWxSendimg('test.jpg', $this->User['UserName']);
 
-        $this->logout();
+        //$this->logout();
 
-        //$this->listenMsgMode();
+		/*
+		foreach ($this->member_list as $v) {
+			$url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetheadimg?seq='.rand(1,10000).'&username='.$v['UserName'].'&skey='.$this->skey;	
+			$img_data = $this->_get($url);
+			file_put_contents('data/'.$v['UserName'].'.jpeg', $img_data);
+		}
+		*/	
+        $this->listenMsgMode();
     }
 }
 
