@@ -20,7 +20,7 @@ class WebWeixin
     private $User;
     private $device_id;
     private $synckey;
-
+	private $files = array();
     private $syncCheck_num = 0;
 
     // 我的所有用户数
@@ -757,11 +757,12 @@ class WebWeixin
                 $cookies[$tmp_data[5]] = trim($tmp_data[6]);
             }
         }
-
+		$finfo = finfo_open(FILEINFO_MIME_TYPE);
+		$mime_type = finfo_file($finfo, $file);
         $data = array(
             'id' => 'WU_FILE_1',
             'name' => basename($file),
-            'type' => 'image/jpg',
+            'type' => $mime_type,
             'lastModifiedDate' => date('D M m Y H:i:s').' GMT+0800 (CST)',
             'size' => filesize($file),
             'mediatype' => 'pic',
@@ -775,7 +776,7 @@ class WebWeixin
             )),
             'webwx_data_ticket' => $cookies['webwx_data_ticket'],
             'pass_ticket' => $this->pass_ticket,
-            'filename' => curl_file_create($file,'image/jpeg','2011072204.jpg')
+            'filename' => curl_file_create($file, $mime_type, basename($file))
         );
 
         $header = array('Content-Type: multipart/form-data');
@@ -787,7 +788,7 @@ class WebWeixin
         if ($res['BaseResponse']['Ret'] != 0) {
             return false;
         }
-
+		echo '上传成功'.PHP_EOL;	
         return $res['MediaId'];
     }
 
@@ -803,13 +804,18 @@ class WebWeixin
         $url = $this->base_uri.'/webwxsendmsgimg?fun=async&f=json';
         $clientMsgId = time()*1000 . rand(1000, 9999);
 
-        $media_id = $this->_uploadmedia($file);
+		if (isset($this->files[$file])) {
+			$media_id = $this->files[$file];
+		} else {
+			$media_id = $this->_uploadmedia($file);
+			$this->files[$file] = $media_id;
+		}
 
         if (empty($media_id)) {
             _echo('上传图片失败');
             return false;
         }
-
+		echo 'media_id: ' . $media_id . PHP_EOL;
 
         $params = array(
             'BaseRequest' => $this->BaseRequest,
@@ -990,6 +996,7 @@ class WebWeixin
         );
 
         $this->_post($url, $params, false);
+		exit();
     }
 
 
@@ -1144,9 +1151,12 @@ class WebWeixin
 
         $this->_webWxSendmsg('微信托管成功', $this->User['UserName']);
 
-        //$this->_webWxSendimg('test.jpg', $this->User['UserName']);
+        _echo('发送图片 ...', $this->_webWxSendimg('test.jpg', $this->User['UserName']));
+        _echo('发送图片 ...', $this->_webWxSendimg('test.png', $this->User['UserName']));
+        _echo('发送图片 ...', $this->_webWxSendimg('test.jpg', $this->User['UserName']));
+        _echo('发送图片 ...', $this->_webWxSendimg('test.png', $this->User['UserName']));
 
-        //$this->logout();
+        $this->logout();
 
 		/*
 		foreach ($this->member_list as $v) {
@@ -1155,7 +1165,7 @@ class WebWeixin
 			file_put_contents('data/'.$v['UserName'].'.jpeg', $img_data);
 		}
 		*/	
-        $this->listenMsgMode();
+        //$this->listenMsgMode();
     }
 }
 
