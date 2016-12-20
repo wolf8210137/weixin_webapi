@@ -1153,8 +1153,7 @@ class WebWeixin
 
         _echo('发送图片 ...', $this->_webWxSendimg('test.jpg', $this->User['UserName']));
         _echo('发送图片 ...', $this->_webWxSendimg('test.png', $this->User['UserName']));
-        _echo('发送图片 ...', $this->_webWxSendimg('test.jpg', $this->User['UserName']));
-        _echo('发送图片 ...', $this->_webWxSendimg('test.png', $this->User['UserName']));
+        _echo('发送图片 ...', $this->_webWxSendimg('test.gif', $this->User['UserName']));
 
         $this->logout();
 
