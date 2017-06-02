@@ -48,6 +48,8 @@ class WebWeixin
 
     private $bot_member_list = array();
 
+    private $rsync_group_list = array('微信功能测试群', '微信功能测试群1', '微信功能测试群2');
+
 
     public function __construct()
     {
@@ -278,6 +280,22 @@ class WebWeixin
         $this->contact_list = $contact_list;
 
         return true;
+    }
+
+
+    /**
+     * 获取图片
+     * @param $msg_id
+     * @return bool
+     */
+    public function webWxGetMsgImg($msg_id)
+    {
+        $this->webWxSync();
+        $url = sprintf($this->base_uri.'/webwxgetmsgimg?skey=%s&MsgID=%s', urlencode($this->skey), $msg_id);
+
+        $data = $this->_get($url);
+
+        return $data;
     }
 
 
@@ -575,6 +593,18 @@ class WebWeixin
             }
         }
 
+        foreach ($this->group_member_list as $member) {
+            if ($name == $member['NickName']) {
+                return $member['UserName'];
+            }
+        }
+
+        foreach ($this->group_list as $member) {
+            if ($name == $member['NickName']) {
+                return $member['UserName'];
+            }
+        }
+
         return $id;
     }
 
@@ -680,13 +710,14 @@ class WebWeixin
 
                         $answer = $this->_tuling_bot($content, $from_username);
 
-                        $this->_webWxSendmsg($answer, $from_username);
+                        //$this->_webWxSendmsg($answer, $from_username);
                     }
 
                     break;
 
 				// 图片消息
 				case 3:
+				    $this->webWxGetMsgImg($msgid);
 					break;
 				
 				// 语音消息
@@ -695,30 +726,16 @@ class WebWeixin
 
                 // 状态提示
                 case 51:
-
-                    $res = array();
-                    preg_match("#id='(\d)'#", $content, $res);
-                    $id = $res[1];
-
-                    $res = array();
-
-                    preg_match("#<username>(.*)</username>#", $content, $res);
-
-                    $username = isset($res[1]) ? $res[1] : null;
-
-                    switch ($id) {
-                        case 2:
-                            _echo('进入聊天界面->'.$username);
-                            break;
-                        case 5:
-                            _echo('退出聊天界面->'.$username);
-                            break;
-                        case 4:
-                            _echo('未读消息通知');
-                            break;
-                        case 9:
-                            _echo('朋友圈有更新');
-                            break;
+                    if (!empty($msg['StatusNotifyUserName'])) {
+                        $usernames = explode(',', $msg['StatusNotifyUserName']);
+                        $this->updateWebWxBatchGetContact($usernames);
+                        if(count($this->group_list) < 1){
+                            $this->updateWebWxBatchGetContact($usernames);
+                            if(count($this->group_list) < 1){
+                                exit();
+                            }
+                        }
+                        _echo('群数: '.count($this->group_list));
                     }
 
                     break;
@@ -735,6 +752,59 @@ class WebWeixin
             }
         }
     }
+
+
+    /**
+     * 更新群信息
+     * @return bool
+     */
+    public function updateWebWxBatchGetContact($usernames)
+    {
+        $url = $this->base_uri.sprintf('/webwxbatchgetcontact?type=ex&r=%s&pass_ticket=%s', time(), $this->pass_ticket);
+        $list = array();
+        foreach ($usernames as $v) {
+            // 只过滤出群
+            if (strpos($v, '@@') === false) {
+                continue;
+            }
+            $item = array();
+            $item['UserName'] = $v;
+            $item['EncryChatRoomId'] = '';
+            $list[] = $item;
+        }
+        $params = array(
+            'BaseRequest' => $this->BaseRequest,
+            'Count' => count($list),
+            'List' => $list
+        );
+        $data = $this->_post($url, json_encode($params));
+        $arr_data = json_decode($data, true);
+        $contact_list = $arr_data['ContactList'];
+        $group_name_list = array();
+        foreach ($this->group_list as $v) {
+            $group_name_list[] = $v['UserName'];
+        }
+        $group_member_list = array();
+        foreach ($this->group_member_list as $v) {
+            $group_member_list[] = $v['UserName'];
+        }
+        foreach ($contact_list as $contact) {
+            foreach ($contact['MemberList'] as $member) {
+                if (!in_array($member['UserName'], $group_member_list)) {
+                    $this->group_member_list[] = $member;
+                }
+            }
+            if (!in_array($contact['UserName'] , $group_name_list)) {
+                if (empty($contact['NickName'])) {
+                    $nicknames = array_column($contact['MemberList'], 'NickName');
+                    $contact['NickName'] = implode('、', $nicknames);
+                }
+                $this->group_list[] = $contact;
+            }
+        }
+        return true;
+    }
+
 
 
     /**
@@ -844,6 +914,7 @@ class WebWeixin
      */
     private function _webWxSendmsg($content, $user)
     {
+
         $url = sprintf($this->base_uri.'/webwxsendmsg?pass_ticket=%s', $this->pass_ticket);
         $clientMsgId = time()*1000 . rand(1000, 9999);
 
@@ -944,14 +1015,6 @@ class WebWeixin
 
         }
 
-        if ($group_name == '微信功能测试群') {
-            $to_group_name = '世纪佳缘技术部';
-        }
-
-        if ($group_name == '世纪佳缘技术部') {
-            $to_group_name = '微信功能测试群';
-        }
-
         if (substr($message['ToUserName'], 0, 2) == '@@') {
             $group_name = $to_username;
             $to_username = $this->getUserRemarkName($message['ToUserName']);
@@ -980,6 +1043,21 @@ class WebWeixin
 
         _echo('消息内容: '.$content);
         _echo('');
+
+        if (!empty($group_name)) {
+
+            if (in_array($group_name, $this->rsync_group_list)) {
+                foreach ($this->rsync_group_list as $group_name_item) {
+                    if ($group_name == $group_name_item) {
+                        continue;
+                    }
+
+                    $to = $this->getUserId($group_name_item);
+                    $this->_webWxSendmsg('['.$group_name.']['.$from_username.']说： '.$content, $to);
+                }
+            }
+
+        }
     }
 
 
@@ -1045,10 +1123,8 @@ class WebWeixin
 
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_REFERER, 'https://wx.qq.com/');
-        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)");
         curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36');
         curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_jar);
         curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_jar);
 
@@ -1151,11 +1227,11 @@ class WebWeixin
 
         $this->_webWxSendmsg('微信托管成功', $this->User['UserName']);
 
-        _echo('发送图片 ...', $this->_webWxSendimg('test.jpg', $this->User['UserName']));
-        _echo('发送图片 ...', $this->_webWxSendimg('test.png', $this->User['UserName']));
-        _echo('发送图片 ...', $this->_webWxSendimg('test.gif', $this->User['UserName']));
+//        _echo('发送图片 ...', $this->_webWxSendimg('test.jpg', $this->User['UserName']));
+//        _echo('发送图片 ...', $this->_webWxSendimg('test.png', $this->User['UserName']));
+//        _echo('发送图片 ...', $this->_webWxSendimg('test.gif', $this->User['UserName']));
 
-        $this->logout();
+        //$this->logout();
 
 		/*
 		foreach ($this->member_list as $v) {
@@ -1164,7 +1240,7 @@ class WebWeixin
 			file_put_contents('data/'.$v['UserName'].'.jpeg', $img_data);
 		}
 		*/	
-        //$this->listenMsgMode();
+        $this->listenMsgMode();
     }
 }
 
